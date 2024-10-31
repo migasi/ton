@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Copyright (c) Whales Corp.
  * All Rights Reserved.
@@ -5,78 +6,29 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-
-import { HttpApi } from "./api/HttpApi";
-import { AxiosAdapter } from 'axios';
-import {
-    Address,
-    beginCell,
-    Cell,
-    comment,
-    Contract,
-    ContractProvider,
-    ContractState,
-    external,
-    loadTransaction,
-    Message,
-    openContract,
-    storeMessage,
-    toNano,
-    Transaction,
-    TupleItem,
-    TupleReader,
-    StateInit,
-    OpenedContract
-} from '@ton/core';
-import { Maybe } from "../utils/maybe";
-
-export type TonClientParameters = {
-    /**
-     * API Endpoint
-     */
-    endpoint: string;
-
-    /**
-     * HTTP request timeout in milliseconds.
-     */
-    timeout?: number;
-
-    /**
-     * API Key
-     */
-    apiKey?: string;
-
-    /**
-     * HTTP Adapter for axios
-     */
-    httpAdapter?: AxiosAdapter;
-}
-
-export class TonClient {
-    readonly parameters: TonClientParameters;
-
-    protected api: HttpApi;
-
-    constructor(parameters: TonClientParameters) {
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TonClient = void 0;
+const HttpApi_1 = require("./api/HttpApi");
+const core_1 = require("@ton/core");
+class TonClient {
+    constructor(parameters) {
         this.parameters = {
             endpoint: parameters.endpoint
         };
-        this.api = new HttpApi(this.parameters.endpoint, {
+        this.api = new HttpApi_1.HttpApi(this.parameters.endpoint, {
             timeout: parameters.timeout,
             apiKey: parameters.apiKey,
             adapter: parameters.httpAdapter
         });
     }
-
     /**
      * Get Address Balance
      * @param address address for balance check
      * @returns balance
      */
-    async getBalance(address: Address) {
+    async getBalance(address) {
         return (await this.getContractState(address)).balance;
     }
-
     /**
      * Invoke get method
      * @param address contract address
@@ -84,14 +36,13 @@ export class TonClient {
      * @param params optional parameters
      * @returns stack and gas_used field
      */
-    async runMethod(address: Address, name: string | number, stack: TupleItem[] = []): Promise<{ gas_used: number, stack: TupleReader }> {
+    async runMethod(address, name, stack = []) {
         let res = await this.api.callGetMethod(address, name, stack);
         if (res.exit_code !== 0) {
             throw Error('Unable to execute get method. Got exit_code: ' + res.exit_code);
         }
         return { gas_used: res.gas_used, stack: parseStack(res.stack) };
     }
-
     /**
      * Invoke get method
      * @param address contract address
@@ -100,10 +51,9 @@ export class TonClient {
      * @returns stack and gas_used field
      * @deprecated use runMethod instead
      */
-    async callGetMethod(address: Address, name: string | number, stack: TupleItem[] = []): Promise<{ gas_used: number, stack: TupleReader }> {
+    async callGetMethod(address, name, stack = []) {
         return this.runMethod(address, name, stack);
     }
-
     /**
      * Invoke get method that returns error code instead of throwing error
      * @param address contract address
@@ -111,11 +61,10 @@ export class TonClient {
      * @param params optional parameters
      * @returns stack and gas_used field
     */
-    async runMethodWithError(address: Address, name: string, params: any[] = []): Promise<{ gas_used: number, stack: TupleReader, exit_code: number }> {
+    async runMethodWithError(address, name, params = []) {
         let res = await this.api.callGetMethod(address, name, params);
         return { gas_used: res.gas_used, stack: parseStack(res.stack), exit_code: res.exit_code };
     }
-
     /**
      * Invoke get method that returns error code instead of throwing error
      * @param address contract address
@@ -124,24 +73,22 @@ export class TonClient {
      * @returns stack and gas_used field
      * @deprecated use runMethodWithError instead
      */
-    async callGetMethodWithError(address: Address, name: string, stack: TupleItem[] = []): Promise<{ gas_used: number, stack: TupleReader }> {
+    async callGetMethodWithError(address, name, stack = []) {
         return this.runMethodWithError(address, name, stack);
     }
-
     /**
      * Get transactions
      * @param address address
      */
-    async getTransactions(address: Address, opts: { limit: number, lt?: string, hash?: string, to_lt?: string, inclusive?: boolean, archival?: boolean }) {
+    async getTransactions(address, opts) {
         // Fetch transactions
         let tx = await this.api.getTransactions(address, opts);
-        let res: Transaction[] = [];
+        let res = [];
         for (let r of tx) {
-            res.push(loadTransaction(Cell.fromBoc(Buffer.from(r.data, 'base64'))[0].beginParse()));
+            res.push((0, core_1.loadTransaction)(core_1.Cell.fromBoc(Buffer.from(r.data, 'base64'))[0].beginParse()));
         }
         return res;
     }
-
     /**
      * Get transaction by it's id
      * @param address address
@@ -149,15 +96,15 @@ export class TonClient {
      * @param hash transaction hash
      * @returns transaction or null if not exist
      */
-    async getTransaction(address: Address, lt: string, hash: string) {
+    async getTransaction(address, lt, hash) {
         let res = await this.api.getTransaction(address, lt, hash);
         if (res) {
-            return loadTransaction(Cell.fromBoc(Buffer.from(res.data, 'base64'))[0].beginParse());
-        } else {
+            return (0, core_1.loadTransaction)(core_1.Cell.fromBoc(Buffer.from(res.data, 'base64'))[0].beginParse());
+        }
+        else {
             return null;
         }
     }
-
     /**
      * Locate outcoming transaction of destination address by incoming message
      * @param source message source address
@@ -165,11 +112,10 @@ export class TonClient {
      * @param created_lt message's created lt
      * @returns transaction
      */
-    async tryLocateResultTx(source: Address, destination: Address, created_lt: string) {
+    async tryLocateResultTx(source, destination, created_lt) {
         let res = await this.api.tryLocateResultTx(source, destination, created_lt);
-        return loadTransaction(Cell.fromBase64(res.data).beginParse());
+        return (0, core_1.loadTransaction)(core_1.Cell.fromBase64(res.data).beginParse());
     }
-
     /**
      * Locate incoming transaction of source address by outcoming message
      * @param source message source address
@@ -177,11 +123,10 @@ export class TonClient {
      * @param created_lt message's created lt
      * @returns transaction
      */
-    async tryLocateSourceTx(source: Address, destination: Address, created_lt: string) {
+    async tryLocateSourceTx(source, destination, created_lt) {
         let res = await this.api.tryLocateSourceTx(source, destination, created_lt);
-        return loadTransaction(Cell.fromBase64(res.data).beginParse());
+        return (0, core_1.loadTransaction)(core_1.Cell.fromBase64(res.data).beginParse());
     }
-
     /**
      * Fetch latest masterchain info
      * @returns masterchain info
@@ -193,14 +138,13 @@ export class TonClient {
             shard: r.last.shard,
             initSeqno: r.init.seqno,
             latestSeqno: r.last.seqno
-        }
+        };
     }
-
     /**
      * Fetch latest workchain shards
      * @param seqno masterchain seqno
      */
-    async getWorkchainShards(seqno: number) {
+    async getWorkchainShards(seqno) {
         let r = await this.api.getShards(seqno);
         return r.map((m) => ({
             workchain: m.workchain,
@@ -208,73 +152,64 @@ export class TonClient {
             seqno: m.seqno
         }));
     }
-
     /**
      * Fetch transactions inf shards
      * @param workchain
      * @param seqno
      * @param shard
      */
-    async getShardTransactions(workchain: number, seqno: number, shard: string) {
+    async getShardTransactions(workchain, seqno, shard) {
         let tx = await this.api.getBlockTransactions(workchain, seqno, shard);
         if (tx.incomplete) {
             throw Error('Unsupported');
         }
         return tx.transactions.map((v) => ({
-            account: Address.parseRaw(v.account),
+            account: core_1.Address.parseRaw(v.account),
             lt: v.lt,
             hash: v.hash
-        }))
+        }));
     }
-
     /**
      * Send message to a network
      * @param src source message
      */
-    async sendMessage(src: Message) {
-        const boc = beginCell()
-            .store(storeMessage(src))
+    async sendMessage(src) {
+        const boc = (0, core_1.beginCell)()
+            .store((0, core_1.storeMessage)(src))
             .endCell();
         await this.api.sendBoc(boc.toBoc());
         return boc.hash().toString('hex');
     }
-
     /**
      * Send file to a network
      * @param src source file
      */
-    async sendFile(src: Buffer) {
+    async sendFile(src) {
         await this.api.sendBoc(src);
     }
-
     /**
      * Estimate fees for external message
      * @param address target address
      * @returns
      */
-    async estimateExternalMessageFee(address: Address, args: {
-        body: Cell,
-        initCode: Cell | null,
-        initData: Cell | null,
-        ignoreSignature: boolean
-    }) {
+    async estimateExternalMessageFee(address, args) {
         return await this.api.estimateFee(address, { body: args.body, initCode: args.initCode, initData: args.initData, ignoreSignature: args.ignoreSignature });
     }
-
     /**
      * Send external message to contract
      * @param contract contract to send message
      * @param src message body
      */
-    async sendExternalMessage(contract: Contract, src: Cell) {
+    async sendExternalMessage(contract, src) {
         if (await this.isContractDeployed(contract.address) || !contract.init) {
-            const message = external({
+            const message = (0, core_1.external)({
                 to: contract.address,
                 body: src
             });
             return await this.sendMessage(message);
-        } else {
-            const message = external({
+        }
+        else {
+            const message = (0, core_1.external)({
                 to: contract.address,
                 init: contract.init,
                 body: src
@@ -282,24 +217,22 @@ export class TonClient {
             return await this.sendMessage(message);
         }
     }
-
     /**
      * Check if contract is deployed
      * @param address addres to check
      * @returns true if contract is in active state
      */
-    async isContractDeployed(address: Address) {
+    async isContractDeployed(address) {
         return (await this.getContractState(address)).state === 'active';
     }
-
     /**
      * Resolves contract state
      * @param address contract address
      */
-    async getContractState(address: Address) {
+    async getContractState(address) {
         let info = await this.api.getAddressInformation(address);
         let balance = BigInt(info.balance);
-        let state = info.state as 'frozen' | 'active' | 'uninitialized';
+        let state = info.state;
         return {
             balance,
             state,
@@ -317,37 +250,35 @@ export class TonClient {
             timestampt: info.sync_utime
         };
     }
-
     /**
      * Open contract
      * @param src source contract
      * @returns contract
      */
-    open<T extends Contract>(src: T) {
-        return openContract<T>(src, (args) => createProvider(this, args.address, args.init));
+    open(src) {
+        return (0, core_1.openContract)(src, (args) => createProvider(this, args.address, args.init));
     }
-
     /**
      * Create a provider
      * @param address address
      * @param init optional init
      * @returns provider
      */
-    provider(address: Address, init?: StateInit | null) {
+    provider(address, init) {
         return createProvider(this, address, init ?? null);
     }
 }
-
-function parseStackEntry(x: any): any {
+exports.TonClient = TonClient;
+function parseStackEntry(x) {
     const typeName = x['@type'];
-    switch(typeName) {
+    switch (typeName) {
         case 'tvm.list':
         case 'tvm.tuple':
             return x.elements.map(parseStackEntry);
         case 'tvm.cell':
-            return Cell.fromBoc(Buffer.from(x.bytes, 'base64'))[0];
+            return core_1.Cell.fromBoc(Buffer.from(x.bytes, 'base64'))[0];
         case 'tvm.slice':
-            return Cell.fromBoc(Buffer.from(x.bytes, 'base64'))[0];
+            return core_1.Cell.fromBoc(Buffer.from(x.bytes, 'base64'))[0];
         case 'tvm.stackEntryCell':
             return parseStackEntry(x.cell);
         case 'tvm.stackEntrySlice':
@@ -364,76 +295,71 @@ function parseStackEntry(x: any): any {
             throw Error('Unsupported item type: ' + typeName);
     }
 }
-
-function parseStackItem(s: any): TupleItem {
+function parseStackItem(s) {
     if (s[0] === 'num') {
-        let val = s[1] as string;
+        let val = s[1];
         if (val.startsWith('-')) {
             return { type: 'int', value: -BigInt(val.slice(1)) };
-        } else {
+        }
+        else {
             return { type: 'int', value: BigInt(val) };
         }
-    } else if (s[0] === 'null') {
+    }
+    else if (s[0] === 'null') {
         return { type: 'null' };
-    } else if (s[0] === 'cell') {
-        return { type: 'cell', cell: Cell.fromBoc(Buffer.from(s[1].bytes, 'base64'))[0] };
-    } else if (s[0] === 'slice') {
-        return { type: 'slice', cell: Cell.fromBoc(Buffer.from(s[1].bytes, 'base64'))[0] };
-    } else if (s[0] === 'builder') {
-        return { type: 'builder', cell: Cell.fromBoc(Buffer.from(s[1].bytes, 'base64'))[0] };
-    } else if (s[0] === 'tuple' || s[0] === 'list') {
+    }
+    else if (s[0] === 'cell') {
+        return { type: 'cell', cell: core_1.Cell.fromBoc(Buffer.from(s[1].bytes, 'base64'))[0] };
+    }
+    else if (s[0] === 'slice') {
+        return { type: 'slice', cell: core_1.Cell.fromBoc(Buffer.from(s[1].bytes, 'base64'))[0] };
+    }
+    else if (s[0] === 'builder') {
+        return { type: 'builder', cell: core_1.Cell.fromBoc(Buffer.from(s[1].bytes, 'base64'))[0] };
+    }
+    else if (s[0] === 'tuple' || s[0] === 'list') {
         if (s[1].elements.length === 0) {
             return { type: 'null' };
         }
-
         return { type: 'tuple', items: s[1].elements.map(parseStackEntry) };
-    } else {
-        throw Error('Unsupported stack item type: ' + s[0])
+    }
+    else {
+        throw Error('Unsupported stack item type: ' + s[0]);
     }
 }
-
-function parseStack(src: any[]) {
-    let stack: TupleItem[] = [];
-
+function parseStack(src) {
+    let stack = [];
     for (let s of src) {
         stack.push(parseStackItem(s));
     }
-
-    return new TupleReader(stack);
+    return new core_1.TupleReader(stack);
 }
-
-function createProvider(client: TonClient, address: Address, init: StateInit | null): ContractProvider {
+function createProvider(client, address, init) {
     return {
-        async getState(): Promise<ContractState> {
+        async getState() {
             let state = await client.getContractState(address);
             let balance = state.balance;
             let last = state.lastTransaction ? { lt: BigInt(state.lastTransaction.lt), hash: Buffer.from(state.lastTransaction.hash, 'base64') } : null;
-            let storage: {
-                type: 'uninit';
-            } | {
-                type: 'active';
-                code: Maybe<Buffer>;
-                data: Maybe<Buffer>;
-            } | {
-                type: 'frozen';
-                stateHash: Buffer;
-            };
+            let storage;
             if (state.state === 'active') {
                 storage = {
                     type: 'active',
                     code: state.code ? state.code : null,
                     data: state.data ? state.data : null,
                 };
-            } else if (state.state === 'uninitialized') {
+            }
+            else if (state.state === 'uninitialized') {
                 storage = {
                     type: 'uninit',
                 };
-            } else if (state.state === 'frozen') {
+            }
+            else if (state.state === 'frozen') {
                 storage = {
                     type: 'frozen',
                     stateHash: Buffer.alloc(0),
                 };
-            } else {
+            }
+            else {
                 throw Error('Unsupported state');
             }
             return {
@@ -447,61 +373,54 @@ function createProvider(client: TonClient, address: Address, init: StateInit | n
             return { stack: method.stack };
         },
         async external(message) {
-
             //
             // Resolve init
             //
-
-            let neededInit: StateInit | null = null;
+            let neededInit = null;
             if (init && !await client.isContractDeployed(address)) {
                 neededInit = init;
             }
-
             //
             // Send package
             //
-
-            const ext = external({
+            const ext = (0, core_1.external)({
                 to: address,
                 init: neededInit,
                 body: message
-            })
-            let boc = beginCell()
-                .store(storeMessage(ext))
+            });
+            let boc = (0, core_1.beginCell)()
+                .store((0, core_1.storeMessage)(ext))
                 .endCell()
                 .toBoc();
             await client.sendFile(boc);
         },
         async internal(via, message) {
-
             // Resolve init
-            let neededInit: StateInit | null = null;
+            let neededInit = null;
             if (init && (!await client.isContractDeployed(address))) {
                 neededInit = init;
             }
-
             // Resolve bounce
             let bounce = true;
             if (message.bounce !== null && message.bounce !== undefined) {
                 bounce = message.bounce;
             }
-
             // Resolve value
-            let value: bigint;
+            let value;
             if (typeof message.value === 'string') {
-                value = toNano(message.value);
-            } else {
+                value = (0, core_1.toNano)(message.value);
+            }
+            else {
                 value = message.value;
             }
-
             // Resolve body
-            let body: Cell | null = null;
+            let body = null;
             if (typeof message.body === 'string') {
-                body = comment(message.body);
-            } else if (message.body) {
+                body = (0, core_1.comment)(message.body);
+            }
+            else if (message.body) {
                 body = message.body;
             }
-
             // Send internal message
             await via.send({
                 to: address,
@@ -512,11 +431,11 @@ function createProvider(client: TonClient, address: Address, init: StateInit | n
                 body
             });
         },
-        open<T extends Contract>(contract: T): OpenedContract<T> {
-            return openContract<T>(contract, (args) => createProvider(client, args.address, args.init ?? null));
+        open(contract) {
+            return (0, core_1.openContract)(contract, (args) => createProvider(client, args.address, args.init ?? null));
         },
-        getTransactions(address: Address, lt: bigint, hash: Buffer, limit?: number): Promise<Transaction[]> {
+        getTransactions(address, lt, hash, limit) {
             return client.getTransactions(address, { limit: limit ?? 100, lt: lt.toString(), hash: hash.toString('base64'), inclusive: true });
         }
-    }
+    };
 }

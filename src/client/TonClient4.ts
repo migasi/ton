@@ -370,7 +370,7 @@ function createProvider(client: TonClient4, block: number | null, address: Addre
                 state: storage
             };
         },
-        async get(name, args) {
+        async get(name: any, args) {
             let sq = block;
             if (sq === null) {
                 let res = await client.getLastBlock();

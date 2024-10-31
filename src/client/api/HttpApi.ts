@@ -294,7 +294,7 @@ export class HttpApi {
         }
     }
 
-    async callGetMethod(address: Address, method: string, stack: TupleItem[]) {
+    async callGetMethod(address: Address, method: string | number, stack: TupleItem[]) {
         return await this.doCall('runGetMethod', { address: address.toString(), method, stack: serializeStack(stack) }, callGetMethod);
     }
 
